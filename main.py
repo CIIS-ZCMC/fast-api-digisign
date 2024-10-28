@@ -1,14 +1,14 @@
+import concurrent.futures
+import os
+
+from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+from cryptography.hazmat.primitives.serialization.pkcs12 import load_key_and_certificates
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
+from fastapi.responses import FileResponse
 from pyhanko import stamp
 from pyhanko.pdf_utils.images import PdfImage
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.sign import fields, signers
-from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
-from cryptography.hazmat.primitives.serialization.pkcs12 import load_key_and_certificates
-from fastapi.responses import FileResponse
-import os
-import concurrent.futures
 
 app = FastAPI()
 
@@ -38,7 +38,8 @@ def extract_cert_and_key(p12_data: bytes, p12_password: str):
 
     return cert_path, key_path
 
-def sign_pdf_sync(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str):
+def sign_pdf_sync_incharge(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
+                  whole_month: bool):
     # Extract cert and key from p12 file data
     cert_path, key_path = extract_cert_and_key(p12_data, p12_password)
 
@@ -51,7 +52,7 @@ def sign_pdf_sync(input_path: str, output_path: str, image_path: str, p12_data: 
         w = IncrementalPdfFileWriter(inf)
         fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
             'Signature1',
-            box=(50, 115, 250, 175) # box-dimension: w = 200, h = 60
+            box=(50, 115, 250, 175)  # box-dimension: w = 200, h = 60
         ))
         meta = signers.PdfSignatureMetadata(field_name='Signature1')
         pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
@@ -70,7 +71,58 @@ def sign_pdf_sync(input_path: str, output_path: str, image_path: str, p12_data: 
         w = IncrementalPdfFileWriter(inf)
         fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
             'Signature2',
-            box=(360, 115, 560, 175) # box-dimension: w = 200, h = 60
+            box=(360, 115, 560, 175)  # box-dimension: w = 200, h = 60
+        ))
+        meta = signers.PdfSignatureMetadata(field_name='Signature2')
+        pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
+            stamp_text='\n\n\nSigned by: %(signer)s\nTime: %(ts)s',
+            background=pdf_image,
+            border_width=0
+        ))
+
+        # Save the final output with both signatures
+        with open(output_path, 'wb') as outf:
+            pdf_signer.sign_pdf(w, output=outf)
+
+    # Clean up temporary files
+    os.remove(cert_path)
+    os.remove(key_path)
+    os.remove(intermediate_output)
+
+def sign_pdf_sync_owner(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
+                  whole_month: bool):
+    # Extract cert and key from p12 file data
+    cert_path, key_path = extract_cert_and_key(p12_data, p12_password)
+
+    # Load signer using extracted cert and key
+    signer = signers.SimpleSigner.load(key_path, cert_path)
+    pdf_image = PdfImage(image_path)
+
+    # First signature
+    with open(input_path, 'rb') as inf:
+        w = IncrementalPdfFileWriter(inf)
+        fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
+            'Signature1',
+            box=(50, 115, 250, 175)  # box-dimension: w = 200, h = 60
+        ))
+        meta = signers.PdfSignatureMetadata(field_name='Signature1')
+        pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
+            stamp_text='\n\n\nSigned by: %(signer)s\nTime: %(ts)s',
+            background=pdf_image,
+            border_width=0
+        ))
+
+        # Save intermediate signed PDF with the first signature
+        intermediate_output = "intermediate_output.pdf"
+        with open(intermediate_output, 'wb') as outf:
+            pdf_signer.sign_pdf(w, output=outf)
+
+    # Second signature
+    with open(intermediate_output, 'rb') as inf:
+        w = IncrementalPdfFileWriter(inf)
+        fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
+            'Signature2',
+            box=(360, 115, 560, 175)  # box-dimension: w = 200, h = 60
         ))
         meta = signers.PdfSignatureMetadata(field_name='Signature2')
         pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
@@ -89,18 +141,19 @@ def sign_pdf_sync(input_path: str, output_path: str, image_path: str, p12_data: 
     os.remove(intermediate_output)
 
 
-@app.post("/sign-dtr/")
-async def sign_dtr(
+@app.post("/sign-dtr-owner/")
+async def sign_dtr_owner(
         input_pdf: UploadFile = File(...),
+        output_pdf: str = Form(...),
         p12_file: UploadFile = File(...),
+        p12_password: str = Form(...),
         image: UploadFile = File(...),
-        output_filename: str = Form(...),
-        p12_password: str = Form(...)
+        whole_month: bool = Form(...)
 ):
     try:
         # Save uploaded files temporarily
         input_path = f"{input_pdf.filename}"
-        output_path = f"{output_filename}"
+        output_path = f"{output_pdf}"
         image_path = f"{image.filename}"
 
         with open(input_path, "wb") as f:
@@ -113,11 +166,50 @@ async def sign_dtr(
 
         # Run the PDF signing process in a synchronous thread
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(sign_pdf_sync, input_path, output_path, image_path, p12_data, p12_password)
+            future = executor.submit(sign_pdf_sync_incharge, input_path, output_path, image_path, p12_data, p12_password,
+                                     whole_month)
             future.result()  # Wait for completion
 
-        return FileResponse(output_path, media_type='application/pdf', filename=output_filename)
+        return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
 
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail="Permission denied: " + str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/sign-dtr-incharge/")
+async def sign_dtr_incharge(
+        input_pdf: UploadFile = File(...),
+        output_pdf: str = Form(...),
+        p12_file: UploadFile = File(...),
+        p12_password: str = Form(...),
+        image: UploadFile = File(...),
+        whole_month: bool = Form(...)
+):
+    try:
+        # Save uploaded files temporarily
+        input_path = f"{input_pdf.filename}"
+        output_path = f"{output_pdf}"
+        image_path = f"{image.filename}"
+
+        with open(input_path, "wb") as f:
+            f.write(await input_pdf.read())
+
+        with open(image_path, "wb") as f:
+            f.write(await image.read())
+
+        p12_data = await p12_file.read()
+
+        # Run the PDF signing process in a synchronous thread
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(sign_pdf_sync_incharge, input_path, output_path, image_path, p12_data, p12_password,
+                                     whole_month)
+            future.result()  # Wait for completion
+
+        return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except PermissionError as e:
