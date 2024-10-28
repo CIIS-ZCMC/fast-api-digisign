@@ -9,18 +9,15 @@ from pyhanko import stamp
 from pyhanko.pdf_utils.images import PdfImage
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.sign import fields, signers
+from pyhanko.sign.fields import enumerate_sig_fields
 
 app = FastAPI()
 
-
 def extract_cert_and_key(p12_data: bytes, p12_password: str):
-    # Load the PKCS#12 file from bytes
     private_key, certificate, additional_certificates = load_key_and_certificates(
         p12_data,
         p12_password.encode()
     )
-
-    # Write the certificate and key to PEM format
     cert_pem = certificate.public_bytes(Encoding.PEM)
     key_pem = private_key.private_bytes(
         Encoding.PEM,
@@ -28,7 +25,6 @@ def extract_cert_and_key(p12_data: bytes, p12_password: str):
         NoEncryption()
     )
 
-    # Write to temporary files
     cert_path = "temp_cert.pem"
     key_path = "temp_key.pem"
     with open(cert_path, "wb") as cert_file:
@@ -39,119 +35,110 @@ def extract_cert_and_key(p12_data: bytes, p12_password: str):
     return cert_path, key_path
 
 def sign_pdf_sync_incharge(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
-                  whole_month: bool):
-    # Extract cert and key from p12 file data
+                           whole_month: bool):
     cert_path, key_path = extract_cert_and_key(p12_data, p12_password)
-
-    # Load signer using extracted cert and key
     signer = signers.SimpleSigner.load(key_path, cert_path)
     pdf_image = PdfImage(image_path)
 
-    # First signature
+    # Load existing PDF
     with open(input_path, 'rb') as inf:
         w = IncrementalPdfFileWriter(inf)
-        fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
-            'Signature1',
-            box=(50, 115, 250, 175)  # box-dimension: w = 200, h = 60
-        ))
-        meta = signers.PdfSignatureMetadata(field_name='Signature1')
+
+        # Check if 'InchargeSignature1' already exists
+        field_exists = 'InchargeSignature1' in enumerate_sig_fields(w)
+
+        if not field_exists:
+            # Add the first signature field if it does not exist
+            fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
+                'InchargeSignature1',
+                box=(50, 80, 250, 140)
+            ))
+
+        meta = signers.PdfSignatureMetadata(field_name='InchargeSignature1')
         pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
             stamp_text='\n\n\nSigned by: %(signer)s\nTime: %(ts)s',
             background=pdf_image,
             border_width=0
         ))
 
-        # Save intermediate signed PDF with the first signature
         intermediate_output = "intermediate_output.pdf"
         with open(intermediate_output, 'wb') as outf:
             pdf_signer.sign_pdf(w, output=outf)
 
-    # Second signature
+    # Add second signature
     with open(intermediate_output, 'rb') as inf:
         w = IncrementalPdfFileWriter(inf)
         fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
-            'Signature2',
-            box=(360, 115, 560, 175)  # box-dimension: w = 200, h = 60
+            'InchargeSignature2',
+            box=(360, 80, 560, 140)
         ))
-        meta = signers.PdfSignatureMetadata(field_name='Signature2')
+        meta = signers.PdfSignatureMetadata(field_name='InchargeSignature2')
         pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
             stamp_text='\n\n\nSigned by: %(signer)s\nTime: %(ts)s',
             background=pdf_image,
             border_width=0
         ))
 
-        # Save the final output with both signatures
         with open(output_path, 'wb') as outf:
             pdf_signer.sign_pdf(w, output=outf)
 
-    # Clean up temporary files
     os.remove(cert_path)
     os.remove(key_path)
     os.remove(intermediate_output)
 
 def sign_pdf_sync_owner(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
-                  whole_month: bool):
-    # Extract cert and key from p12 file data
+                        whole_month: bool):
     cert_path, key_path = extract_cert_and_key(p12_data, p12_password)
-
-    # Load signer using extracted cert and key
     signer = signers.SimpleSigner.load(key_path, cert_path)
     pdf_image = PdfImage(image_path)
 
-    # First signature
     with open(input_path, 'rb') as inf:
         w = IncrementalPdfFileWriter(inf)
         fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
-            'Signature1',
-            box=(50, 115, 250, 175)  # box-dimension: w = 200, h = 60
+            'OwnerSignature1',
+            box=(50, 115, 250, 175)
         ))
-        meta = signers.PdfSignatureMetadata(field_name='Signature1')
+        meta = signers.PdfSignatureMetadata(field_name='OwnerSignature1')
         pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
             stamp_text='\n\n\nSigned by: %(signer)s\nTime: %(ts)s',
             background=pdf_image,
             border_width=0
         ))
 
-        # Save intermediate signed PDF with the first signature
         intermediate_output = "intermediate_output.pdf"
         with open(intermediate_output, 'wb') as outf:
             pdf_signer.sign_pdf(w, output=outf)
 
-    # Second signature
     with open(intermediate_output, 'rb') as inf:
         w = IncrementalPdfFileWriter(inf)
         fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
-            'Signature2',
-            box=(360, 115, 560, 175)  # box-dimension: w = 200, h = 60
+            'OwnerSignature2',
+            box=(360, 115, 560, 175)
         ))
-        meta = signers.PdfSignatureMetadata(field_name='Signature2')
+        meta = signers.PdfSignatureMetadata(field_name='OwnerSignature2')
         pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
             stamp_text='\n\n\nSigned by: %(signer)s\nTime: %(ts)s',
             background=pdf_image,
             border_width=0
         ))
 
-        # Save the final output with both signatures
         with open(output_path, 'wb') as outf:
             pdf_signer.sign_pdf(w, output=outf)
 
-    # Clean up temporary files
     os.remove(cert_path)
     os.remove(key_path)
     os.remove(intermediate_output)
 
-
 @app.post("/sign-dtr-owner/")
 async def sign_dtr_owner(
         input_pdf: UploadFile = File(...),
-        output_pdf: str = Form(...),
         p12_file: UploadFile = File(...),
         p12_password: str = Form(...),
         image: UploadFile = File(...),
         whole_month: bool = Form(...)
 ):
     try:
-        # Save uploaded files temporarily
+        output_pdf = "signed_owner.pdf"
         input_path = f"{input_pdf.filename}"
         output_path = f"{output_pdf}"
         image_path = f"{image.filename}"
@@ -164,11 +151,10 @@ async def sign_dtr_owner(
 
         p12_data = await p12_file.read()
 
-        # Run the PDF signing process in a synchronous thread
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(sign_pdf_sync_incharge, input_path, output_path, image_path, p12_data, p12_password,
+            future = executor.submit(sign_pdf_sync_owner, input_path, output_path, image_path, p12_data, p12_password,
                                      whole_month)
-            future.result()  # Wait for completion
+            future.result()
 
         return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
 
@@ -179,18 +165,16 @@ async def sign_dtr_owner(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/sign-dtr-incharge/")
 async def sign_dtr_incharge(
         input_pdf: UploadFile = File(...),
-        output_pdf: str = Form(...),
         p12_file: UploadFile = File(...),
         p12_password: str = Form(...),
         image: UploadFile = File(...),
         whole_month: bool = Form(...)
 ):
     try:
-        # Save uploaded files temporarily
+        output_pdf = "signed_incharge.pdf"
         input_path = f"{input_pdf.filename}"
         output_path = f"{output_pdf}"
         image_path = f"{image.filename}"
@@ -203,11 +187,10 @@ async def sign_dtr_incharge(
 
         p12_data = await p12_file.read()
 
-        # Run the PDF signing process in a synchronous thread
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(sign_pdf_sync_incharge, input_path, output_path, image_path, p12_data, p12_password,
                                      whole_month)
-            future.result()  # Wait for completion
+            future.result()
 
         return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
     except FileNotFoundError as e:
