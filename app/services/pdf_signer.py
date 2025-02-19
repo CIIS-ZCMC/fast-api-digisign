@@ -48,7 +48,7 @@ class PDFSigner:
                 # Add the first signature field if it does not exist
                 fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                     'InchargeSignature1',
-                    box=(50, 80, 250, 140)
+                    box=(50, 70, 250, 130)
                 ))
 
             meta = signers.PdfSignatureMetadata(field_name='InchargeSignature1')
@@ -67,7 +67,7 @@ class PDFSigner:
             w = IncrementalPdfFileWriter(inf)
             fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                 'InchargeSignature2',
-                box=(360, 80, 560, 140)
+                box=(360, 70, 560, 130)
             ))
             meta = signers.PdfSignatureMetadata(field_name='InchargeSignature2')
             pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
@@ -94,7 +94,7 @@ class PDFSigner:
             w = IncrementalPdfFileWriter(inf)
             fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                 'OwnerSignature1',
-                box=(50, 115, 250, 175)
+                box=(50, 105, 250, 165)
             ))
             meta = signers.PdfSignatureMetadata(field_name='OwnerSignature1')
             pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
@@ -111,7 +111,7 @@ class PDFSigner:
             w = IncrementalPdfFileWriter(inf)
             fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                 'OwnerSignature2',
-                box=(360, 115, 560, 175)
+                box=(360, 105, 560, 165)
             ))
             meta = signers.PdfSignatureMetadata(field_name='OwnerSignature2')
             pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
