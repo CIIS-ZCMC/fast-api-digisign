@@ -1,3 +1,19 @@
+"""
+FastAPI Digital Signature Application
+
+This module implements a FastAPI-based web service for digitally signing PDF documents,
+specifically designed for handling DTR (Daily Time Record) signatures. It provides
+endpoints for both owner and in-charge signatures, with support for image processing
+and digital certificate-based signing.
+
+The application handles:
+- PDF document uploading and signing
+- Digital certificate (P12) processing
+- Signature image processing and scaling
+- Concurrent processing for better performance
+- Temporary file management
+"""
+
 import concurrent.futures
 import os
 import datetime
@@ -8,7 +24,11 @@ from app.services.pdf_signer import PDFSigner
 from app.utils.image_processor import ImageProcessor
 from app.core.config import TEMP_FILE_DIR, OUTPUT_DIR
 
-app = FastAPI()
+app = FastAPI(
+    title="Digital Signature API",
+    description="API for digitally signing PDF documents with image and certificate-based signatures",
+    version="1.0.0"
+)
 
 @app.post("/sign-dtr-owner/")
 async def sign_dtr_owner(
@@ -18,9 +38,31 @@ async def sign_dtr_owner(
         image: UploadFile = File(...),
         whole_month: bool = Form(...),
         scale_factor: float = Form(0.9),  # 0.9 = 90% of original size (10% reduction)
-        image_quality: int = Form(100),    # 95% quality
+        image_quality: int = Form(100),    # 100% quality
         token: dict = Depends(verify_token),
 ):
+    """
+    Sign a DTR (Daily Time Record) PDF as an owner with a digital signature.
+
+    Parameters:
+        input_pdf (UploadFile): The PDF file to be signed
+        p12_file (UploadFile): The P12/PFX certificate file for digital signing
+        p12_password (str): Password for the P12/PFX certificate
+        image (UploadFile): Signature image file (PNG format recommended)
+        whole_month (bool): Whether to sign for the whole month or specific dates
+        scale_factor (float): Scaling factor for the signature image (default: 0.9)
+        image_quality (int): Quality of the processed signature image (default: 100)
+        token (dict): Authentication token (automatically injected by dependency)
+
+    Returns:
+        FileResponse: The signed PDF file
+
+    Raises:
+        HTTPException: 
+            - 404: If required files are not found
+            - 403: If permission is denied
+            - 500: For other processing errors
+    """
     try:
         # Generate unique filenames with timestamp
         timestamp = int(datetime.datetime.now().timestamp())
@@ -50,7 +92,7 @@ async def sign_dtr_owner(
         p12_data = await p12_file.read()
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(PDFSigner.sign_pdf_sync_owner, input_path, output_path, processed_image_path, p12_data, p12_password,
+            future = executor.submit(PDFSigner.dtr_sign_pdf_sync_owner, input_path, output_path, processed_image_path, p12_data, p12_password,
                                      whole_month)
             future.result()
 
@@ -76,9 +118,31 @@ async def sign_dtr_incharge(
         image: UploadFile = File(...),
         whole_month: bool = Form(...),
         scale_factor: float = Form(0.9),  # 0.9 = 90% of original size (10% reduction)
-        image_quality: int = Form(100),    # 95% quality
+        image_quality: int = Form(100),    # 100% quality
         token: dict = Depends(verify_token),
 ):
+    """
+    Sign a DTR (Daily Time Record) PDF as an in-charge person with a digital signature.
+
+    Parameters:
+        input_pdf (UploadFile): The PDF file to be signed
+        p12_file (UploadFile): The P12/PFX certificate file for digital signing
+        p12_password (str): Password for the P12/PFX certificate
+        image (UploadFile): Signature image file (PNG format recommended)
+        whole_month (bool): Whether to sign for the whole month or specific dates
+        scale_factor (float): Scaling factor for the signature image (default: 0.9)
+        image_quality (int): Quality of the processed signature image (default: 100)
+        token (dict): Authentication token (automatically injected by dependency)
+
+    Returns:
+        FileResponse: The signed PDF file
+
+    Raises:
+        HTTPException: 
+            - 404: If required files are not found
+            - 403: If permission is denied
+            - 500: For other processing errors
+    """
     try:
         # Generate unique filenames with timestamp
         timestamp = int(datetime.datetime.now().timestamp())
@@ -108,7 +172,7 @@ async def sign_dtr_incharge(
         p12_data = await p12_file.read()
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(PDFSigner.sign_pdf_sync_incharge, input_path, output_path, processed_image_path, p12_data, p12_password,
+            future = executor.submit(PDFSigner.dtr_sign_pdf_sync_incharge, input_path, output_path, processed_image_path, p12_data, p12_password,
                                      whole_month)
             future.result()
 
@@ -124,3 +188,11 @@ async def sign_dtr_incharge(
         raise HTTPException(status_code=403, detail="Permission denied: " + str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+'''
+TODO:
+1. Create an API to sign the leave application PDF
+    - Accepts PDF, P12/PFX, and image files
+    - Returns signed PDF
+'''

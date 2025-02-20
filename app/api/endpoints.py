@@ -1,3 +1,23 @@
+"""
+API Endpoints Module
+
+This module defines the FastAPI routes for the digital signature application.
+It provides endpoints for signing PDF documents (specifically DTR - Daily Time Records)
+with both owner and in-charge signatures.
+
+The module implements secure file handling with proper cleanup, concurrent processing
+for better performance, and comprehensive error handling.
+
+Routes:
+    POST /sign-dtr-owner/: Sign a DTR as an owner
+    POST /sign-dtr-incharge/: Sign a DTR as an in-charge person
+
+Security:
+    - All endpoints require JWT authentication
+    - Temporary files are securely handled and cleaned up
+    - Concurrent processing is used for PDF signing operations
+"""
+
 import concurrent.futures
 import os
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Response, Depends
@@ -17,6 +37,34 @@ async def sign_dtr_owner(
         whole_month: bool = Form(...),
         token: dict = Depends(verify_token),
 ):
+    """
+    Sign a DTR (Daily Time Record) PDF document as an owner.
+
+    This endpoint processes a PDF document by adding an owner's digital signature.
+    The signature includes both a visual representation (image) and a cryptographic
+    signature using a P12/PFX certificate.
+
+    Args:
+        input_pdf (UploadFile): The PDF file to be signed
+        p12_file (UploadFile): The P12/PFX certificate file for digital signing
+        p12_password (str): Password for the P12/PFX certificate
+        image (UploadFile): Signature image file
+        whole_month (bool): Whether to sign for the whole month
+        token (dict): JWT token payload (injected by dependency)
+
+    Returns:
+        Response: The signed PDF file as a downloadable attachment
+
+    Raises:
+        HTTPException: 
+            - 404: If required files are not found
+            - 403: If permission is denied
+            - 500: For other processing errors
+
+    Note:
+        All temporary files are automatically cleaned up after processing,
+        even if an error occurs.
+    """
     try:
         # Create unique filenames using the original names
         input_path = os.path.join(settings.TEMP_FILE_DIR, f"input_{input_pdf.filename}")
@@ -36,7 +84,7 @@ async def sign_dtr_owner(
             # Process the PDF signing
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
-                    PDFSigner.sign_pdf_sync_owner,
+                    PDFSigner.dtr_sign_pdf_sync_owner,
                     input_path, output_path, image_path,
                     p12_data, p12_password, whole_month
                 )
@@ -85,6 +133,34 @@ async def sign_dtr_incharge(
         whole_month: bool = Form(...),
         token: dict = Depends(verify_token),
 ):
+    """
+    Sign a DTR (Daily Time Record) PDF document as an in-charge person.
+
+    This endpoint processes a PDF document by adding an in-charge person's digital
+    signature. The signature includes both a visual representation (image) and a
+    cryptographic signature using a P12/PFX certificate.
+
+    Args:
+        input_pdf (UploadFile): The PDF file to be signed
+        p12_file (UploadFile): The P12/PFX certificate file for digital signing
+        p12_password (str): Password for the P12/PFX certificate
+        image (UploadFile): Signature image file
+        whole_month (bool): Whether to sign for the whole month
+        token (dict): JWT token payload (injected by dependency)
+
+    Returns:
+        Response: The signed PDF file as a downloadable attachment
+
+    Raises:
+        HTTPException: 
+            - 404: If required files are not found
+            - 403: If permission is denied
+            - 500: For other processing errors
+
+    Note:
+        All temporary files are automatically cleaned up after processing,
+        even if an error occurs.
+    """
     try:
         # Create unique filenames using the original names
         input_path = os.path.join(settings.TEMP_FILE_DIR, f"input_{input_pdf.filename}")
@@ -104,7 +180,7 @@ async def sign_dtr_incharge(
             # Process the PDF signing
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
-                    PDFSigner.sign_pdf_sync_incharge,
+                    PDFSigner.dtr_sign_pdf_sync_incharge,
                     input_path, output_path, image_path,
                     p12_data, p12_password, whole_month
                 )

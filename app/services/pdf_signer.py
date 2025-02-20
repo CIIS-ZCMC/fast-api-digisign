@@ -1,3 +1,15 @@
+"""
+PDF Digital Signature Service
+
+This module provides functionality for digitally signing PDF documents using digital certificates
+and signature images. It supports both owner and in-charge signature placements with specific
+positioning and styling.
+
+The service uses pyhanko for PDF manipulation and cryptography for certificate handling.
+It implements a two-signature system where each document can be signed twice in different
+positions, useful for multi-page or multi-signature requirements.
+"""
+
 import os
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
 from cryptography.hazmat.primitives.serialization.pkcs12 import load_key_and_certificates
@@ -8,8 +20,29 @@ from pyhanko.sign import fields, signers
 from pyhanko.sign.fields import enumerate_sig_fields
 
 class PDFSigner:
+    """
+    A utility class for handling PDF digital signatures.
+    
+    This class provides static methods for extracting certificates and signing PDFs
+    with digital signatures and visual stamps. It supports both owner and in-charge
+    signature placements with specific positioning.
+    """
+
     @staticmethod
-    def extract_cert_and_key(p12_data: bytes, p12_password: str):
+    def extract_cert_and_key(p12_data: bytes, p12_password: str) -> tuple[str, str]:
+        """
+        Extract certificate and private key from P12/PFX data.
+
+        Args:
+            p12_data (bytes): Raw P12/PFX certificate data
+            p12_password (str): Password to decrypt the P12/PFX data
+
+        Returns:
+            tuple[str, str]: Paths to the temporary certificate and key PEM files
+
+        Note:
+            This method creates temporary files that should be cleaned up after use
+        """
         private_key, certificate, additional_certificates = load_key_and_certificates(
             p12_data,
             p12_password.encode()
@@ -31,8 +64,26 @@ class PDFSigner:
         return cert_path, key_path
 
     @staticmethod
-    def sign_pdf_sync_incharge(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
-                              whole_month: bool):
+    def dtr_sign_pdf_sync_incharge(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
+                              whole_month: bool) -> None:
+        """
+        Sign a PDF as an in-charge person with two signature fields.
+
+        This method adds two signature fields to the PDF:
+        1. InchargeSignature1: Positioned at (50, 70, 250, 130)
+        2. InchargeSignature2: Positioned at (360, 70, 560, 130)
+
+        Args:
+            input_path (str): Path to the input PDF file
+            output_path (str): Path where the signed PDF will be saved
+            image_path (str): Path to the signature image file
+            p12_data (bytes): Raw P12/PFX certificate data
+            p12_password (str): Password to decrypt the P12/PFX data
+            whole_month (bool): Flag indicating if signing for whole month
+
+        Note:
+            The method creates and cleans up temporary files during execution
+        """
         cert_path, key_path = PDFSigner.extract_cert_and_key(p12_data, p12_password)
         signer = signers.SimpleSigner.load(key_path, cert_path)
         pdf_image = PdfImage(image_path)
@@ -84,8 +135,26 @@ class PDFSigner:
         os.remove(intermediate_output)
 
     @staticmethod
-    def sign_pdf_sync_owner(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
-                           whole_month: bool):
+    def dtr_sign_pdf_sync_owner(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
+                           whole_month: bool) -> None:
+        """
+        Sign a PDF as an owner with two signature fields.
+
+        This method adds two signature fields to the PDF:
+        1. OwnerSignature1: Positioned at (50, 105, 250, 165)
+        2. OwnerSignature2: Positioned at (360, 105, 560, 165)
+
+        Args:
+            input_path (str): Path to the input PDF file
+            output_path (str): Path where the signed PDF will be saved
+            image_path (str): Path to the signature image file
+            p12_data (bytes): Raw P12/PFX certificate data
+            p12_password (str): Password to decrypt the P12/PFX data
+            whole_month (bool): Flag indicating if signing for whole month
+
+        Note:
+            The method creates and cleans up temporary files during execution
+        """
         cert_path, key_path = PDFSigner.extract_cert_and_key(p12_data, p12_password)
         signer = signers.SimpleSigner.load(key_path, cert_path)
         pdf_image = PdfImage(image_path)
