@@ -190,9 +190,227 @@ async def sign_dtr_incharge(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-'''
-TODO:
-1. Create an API to sign the leave application PDF
-    - Accepts PDF, P12/PFX, and image files
-    - Returns signed PDF
-'''
+@app.post("/sign-leave-application-owner/")
+async def sign_leave_application_owner(
+        input_pdf: UploadFile = File(...),
+        p12_file: UploadFile = File(...),
+        p12_password: str = Form(...),
+        image: UploadFile = File(...),
+        scale_factor: float = Form(0.9),  # 0.9 = 90% of original size (10% reduction)
+        image_quality: int = Form(100),    # 100% quality
+        # token: dict = Depends(verify_token),
+):
+    try:
+        # Generate unique filename with timestamp
+        timestamp = int(datetime.datetime.now().timestamp())
+        output_pdf = f"signed_leave_{timestamp}.pdf"
+        input_path = os.path.join(TEMP_FILE_DIR, f"input_{timestamp}.pdf")
+        output_path = os.path.join(OUTPUT_DIR, output_pdf)
+
+        # Image paths
+        original_image_path = os.path.join(TEMP_FILE_DIR, f"image_{timestamp}.png")
+        processed_image_path = os.path.join(TEMP_FILE_DIR, f"processed_image_{timestamp}.png")
+
+        # Save uploaded files to temp directory
+        with open(input_path, "wb") as f:
+            f.write(await input_pdf.read())
+        
+        with open(original_image_path, "wb") as f:
+            f.write(await image.read())
+
+        # Process the image
+        ImageProcessor.process_signature_image(
+            original_image_path,
+            processed_image_path,
+            scale_factor=scale_factor,
+            quality=image_quality
+        )
+
+        p12_data = await p12_file.read()
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            pdf_signer = PDFSigner()
+            future = executor.submit(pdf_signer.leave_application_sign_pdf_sync_owner, input_path, output_path, processed_image_path, p12_data, p12_password)
+            future.result()
+
+        # Clean up temp files
+        os.remove(input_path)
+        os.remove(original_image_path)
+        os.remove(processed_image_path)
+
+        return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail="Permission denied: " + str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/sign-leave-application-head/")
+async def sign_leave_application_head(
+        input_pdf: UploadFile = File(...),
+        p12_file: UploadFile = File(...),
+        p12_password: str = Form(...),
+        image: UploadFile = File(...),
+        scale_factor: float = Form(0.9),  # 0.9 = 90% of original size (10% reduction)
+        image_quality: int = Form(100),    # 100% quality
+        # token: dict = Depends(verify_token),
+):
+    try:
+        # Generate unique filename with timestamp
+        timestamp = int(datetime.datetime.now().timestamp())
+        output_pdf = f"head_signed_leave_{timestamp}.pdf"
+        input_path = os.path.join(TEMP_FILE_DIR, f"input_{timestamp}.pdf")
+        output_path = os.path.join(OUTPUT_DIR, output_pdf)
+
+        # Image paths
+        original_image_path = os.path.join(TEMP_FILE_DIR, f"image_{timestamp}.png")
+        processed_image_path = os.path.join(TEMP_FILE_DIR, f"processed_image_{timestamp}.png")
+
+        # Save uploaded files to temp directory
+        with open(input_path, "wb") as f:
+            f.write(await input_pdf.read())
+        
+        with open(original_image_path, "wb") as f:
+            f.write(await image.read())
+
+        # Process the image
+        ImageProcessor.process_signature_image(
+            original_image_path,
+            processed_image_path,
+            scale_factor=scale_factor,
+            quality=image_quality
+        )
+
+        p12_data = await p12_file.read()
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            pdf_signer = PDFSigner()
+            future = executor.submit(pdf_signer.leave_application_sign_pdf_sync_head, input_path, output_path, processed_image_path, p12_data, p12_password)
+            future.result()
+
+        # Clean up temp files
+        os.remove(input_path)
+        os.remove(original_image_path)
+        os.remove(processed_image_path)
+
+        return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail="Permission denied: " + str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/sign-leave-application-sao/")
+async def sign_leave_application_sao(
+        input_pdf: UploadFile = File(...),
+        p12_file: UploadFile = File(...),
+        p12_password: str = Form(...),
+        image: UploadFile = File(...),
+        scale_factor: float = Form(0.9),  # 0.9 = 90% of original size (10% reduction)
+        image_quality: int = Form(100),    # 100% quality
+        # token: dict = Depends(verify_token),
+):
+    try:
+        # Generate unique filename with timestamp
+        timestamp = int(datetime.datetime.now().timestamp())
+        output_pdf = f"sao_signed_leave_{timestamp}.pdf"
+        input_path = os.path.join(TEMP_FILE_DIR, f"input_{timestamp}.pdf")
+        output_path = os.path.join(OUTPUT_DIR, output_pdf)
+
+        # Image paths
+        original_image_path = os.path.join(TEMP_FILE_DIR, f"image_{timestamp}.png")
+        processed_image_path = os.path.join(TEMP_FILE_DIR, f"processed_image_{timestamp}.png")
+
+        # Save uploaded files to temp directory
+        with open(input_path, "wb") as f:
+            f.write(await input_pdf.read())
+        
+        with open(original_image_path, "wb") as f:
+            f.write(await image.read())
+
+        # Process the image
+        ImageProcessor.process_signature_image(
+            original_image_path,
+            processed_image_path,
+            scale_factor=scale_factor,
+            quality=image_quality
+        )
+
+        p12_data = await p12_file.read()
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            pdf_signer = PDFSigner()
+            future = executor.submit(pdf_signer.leave_application_sign_pdf_sync_sao, input_path, output_path, processed_image_path, p12_data, p12_password)
+            future.result()
+
+        # Clean up temp files
+        os.remove(input_path)
+        os.remove(original_image_path)
+        os.remove(processed_image_path)
+
+        return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail="Permission denied: " + str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/sign-leave-application-cao/")
+async def sign_leave_application_cao(
+        input_pdf: UploadFile = File(...),
+        p12_file: UploadFile = File(...),
+        p12_password: str = Form(...),
+        image: UploadFile = File(...),
+        scale_factor: float = Form(0.9),  # 0.9 = 90% of original size (10% reduction)
+        image_quality: int = Form(100),    # 100% quality
+        # token: dict = Depends(verify_token),
+):
+    try:
+        # Generate unique filename with timestamp
+        timestamp = int(datetime.datetime.now().timestamp())
+        output_pdf = f"cao_signed_leave_{timestamp}.pdf"
+        input_path = os.path.join(TEMP_FILE_DIR, f"input_{timestamp}.pdf")
+        output_path = os.path.join(OUTPUT_DIR, output_pdf)
+
+        # Image paths
+        original_image_path = os.path.join(TEMP_FILE_DIR, f"image_{timestamp}.png")
+        processed_image_path = os.path.join(TEMP_FILE_DIR, f"processed_image_{timestamp}.png")
+
+        # Save uploaded files to temp directory
+        with open(input_path, "wb") as f:
+            f.write(await input_pdf.read())
+        
+        with open(original_image_path, "wb") as f:
+            f.write(await image.read())
+
+        # Process the image
+        ImageProcessor.process_signature_image(
+            original_image_path,
+            processed_image_path,
+            scale_factor=scale_factor,
+            quality=image_quality
+        )
+
+        p12_data = await p12_file.read()
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            pdf_signer = PDFSigner()
+            future = executor.submit(pdf_signer.leave_application_sign_pdf_sync_cao, input_path, output_path, processed_image_path, p12_data, p12_password)
+            future.result()
+
+        # Clean up temp files
+        os.remove(input_path)
+        os.remove(original_image_path)
+        os.remove(processed_image_path)
+
+        return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail="Permission denied: " + str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
