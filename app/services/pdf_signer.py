@@ -64,6 +64,70 @@ class PDFSigner:
         return cert_path, key_path
 
     @staticmethod
+    def dtr_sign_pdf_sync_owner(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
+                           whole_month: bool) -> None:
+        """
+        Sign a PDF as an owner with two signature fields.
+
+        This method adds two signature fields to the PDF:
+        1. OwnerSignature1: Positioned at (50, 105, 250, 165)
+        2. OwnerSignature2: Positioned at (360, 105, 560, 165)
+
+        Args:
+            input_path (str): Path to the input PDF file
+            output_path (str): Path where the signed PDF will be saved
+            image_path (str): Path to the signature image file
+            p12_data (bytes): Raw P12/PFX certificate data
+            p12_password (str): Password to decrypt the P12/PFX data
+            whole_month (bool): Flag indicating if signing for whole month
+
+        Note:
+            The method creates and cleans up temporary files during execution
+        """
+        cert_path, key_path = PDFSigner.extract_cert_and_key(p12_data, p12_password)
+        signer = signers.SimpleSigner.load(key_path, cert_path)
+        pdf_image = PdfImage(image_path)
+
+        adjust_y = 0 if whole_month else 250 
+
+        with open(input_path, 'rb') as inf:
+            w = IncrementalPdfFileWriter(inf)
+            fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
+                'OwnerSignature1',
+                box=(50, 105 + adjust_y, 250, 165 + adjust_y)
+            ))
+            meta = signers.PdfSignatureMetadata(field_name='OwnerSignature1')
+            pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
+                stamp_text='\n\n\nSigned by: %(signer)s\nDate Signed: %(ts)s',
+                background=pdf_image,
+                border_width=0
+            ))
+
+            intermediate_output = "intermediate_output.pdf"
+            with open(intermediate_output, 'wb') as outf:
+                pdf_signer.sign_pdf(w, output=outf)
+
+        with open(intermediate_output, 'rb') as inf:
+            w = IncrementalPdfFileWriter(inf)
+            fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
+                'OwnerSignature2',
+                box=(360, 105 + adjust_y, 560, 165 + adjust_y)
+            ))
+            meta = signers.PdfSignatureMetadata(field_name='OwnerSignature2')
+            pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
+                stamp_text='\n\n\nSigned by: %(signer)s\nDate Signed: %(ts)s',
+                background=pdf_image,
+                border_width=0
+            ))
+
+            with open(output_path, 'wb') as outf:
+                pdf_signer.sign_pdf(w, output=outf)
+
+        os.remove(cert_path)
+        os.remove(key_path)
+        os.remove(intermediate_output)
+
+    @staticmethod
     def dtr_sign_pdf_sync_incharge(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
                               whole_month: bool) -> None:
         """
@@ -134,53 +198,22 @@ class PDFSigner:
         os.remove(key_path)
         os.remove(intermediate_output)
 
-    @staticmethod
-    def dtr_sign_pdf_sync_owner(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
-                           whole_month: bool) -> None:
-        """
-        Sign a PDF as an owner with two signature fields.
 
-        This method adds two signature fields to the PDF:
-        1. OwnerSignature1: Positioned at (50, 105, 250, 165)
-        2. OwnerSignature2: Positioned at (360, 105, 560, 165)
-
-        Args:
-            input_path (str): Path to the input PDF file
-            output_path (str): Path where the signed PDF will be saved
-            image_path (str): Path to the signature image file
-            p12_data (bytes): Raw P12/PFX certificate data
-            p12_password (str): Password to decrypt the P12/PFX data
-            whole_month (bool): Flag indicating if signing for whole month
-
-        Note:
-            The method creates and cleans up temporary files during execution
-        """
+    def leave_application_sign_pdf_sync_owner(self, input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str) -> None:
         cert_path, key_path = PDFSigner.extract_cert_and_key(p12_data, p12_password)
         signer = signers.SimpleSigner.load(key_path, cert_path)
-        pdf_image = PdfImage(image_path)
+        pdf_image =PdfImage(image_path)
 
+        x = 330
+        y = 535 
+        x2 = x + 220
+        y2 = y + 70
+        
         with open(input_path, 'rb') as inf:
             w = IncrementalPdfFileWriter(inf)
             fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
-                'OwnerSignature1',
-                box=(50, 105, 250, 165)
-            ))
-            meta = signers.PdfSignatureMetadata(field_name='OwnerSignature1')
-            pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
-                stamp_text='\n\n\nSigned by: %(signer)s\nDate Signed: %(ts)s',
-                background=pdf_image,
-                border_width=0
-            ))
-
-            intermediate_output = "intermediate_output.pdf"
-            with open(intermediate_output, 'wb') as outf:
-                pdf_signer.sign_pdf(w, output=outf)
-
-        with open(intermediate_output, 'rb') as inf:
-            w = IncrementalPdfFileWriter(inf)
-            fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                 'OwnerSignature2',
-                box=(360, 105, 560, 165)
+                box=(x, y, x2, y2)
             ))
             meta = signers.PdfSignatureMetadata(field_name='OwnerSignature2')
             pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
@@ -194,4 +227,94 @@ class PDFSigner:
 
         os.remove(cert_path)
         os.remove(key_path)
-        os.remove(intermediate_output)
+        # os.remove(intermediate_output)
+
+    def leave_application_sign_pdf_sync_head(self, input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str) -> None:
+        cert_path, key_path = PDFSigner.extract_cert_and_key(p12_data, p12_password)
+        signer = signers.SimpleSigner.load(key_path, cert_path)
+        pdf_image = PdfImage(image_path)
+
+        x = 330  # Position for CAO signature
+        y = 355  # increase the value to move up
+        x2 = x + 220
+        y2 = y + 70
+
+
+        with open(input_path, 'rb') as inf:
+            w = IncrementalPdfFileWriter(inf)
+            fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
+                'HeadSignature2',
+                box=(x, y, x2, y2)
+            ))
+            meta = signers.PdfSignatureMetadata(field_name='HeadSignature2')
+            pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
+                stamp_text='\n\n\nSigned by: %(signer)s\nDate Signed: %(ts)s',
+                background=pdf_image,
+                border_width=0
+            ))
+
+            with open(output_path, 'wb') as outf:
+                pdf_signer.sign_pdf(w, output=outf)
+
+        os.remove(cert_path)
+        os.remove(key_path)
+
+    def leave_application_sign_pdf_sync_sao(self, input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str) -> None:
+        cert_path, key_path = PDFSigner.extract_cert_and_key(p12_data, p12_password)
+        signer = signers.SimpleSigner.load(key_path, cert_path)
+        pdf_image = PdfImage(image_path)
+
+        x = 50  # move x axis | left: decrease | right: increase
+        y = 355  # increase the value to move up
+        x2 = x + 220
+        y2 = y + 70
+
+
+        with open(input_path, 'rb') as inf:
+            w = IncrementalPdfFileWriter(inf)
+            fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
+                'SaoSignature2',
+                box=(x, y, x2, y2)
+            ))
+            meta = signers.PdfSignatureMetadata(field_name='SaoSignature2')
+            pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
+                stamp_text='\n\n\nSigned by: %(signer)s\nDate Signed: %(ts)s',
+                background=pdf_image,
+                border_width=0
+            ))
+
+            with open(output_path, 'wb') as outf:
+                pdf_signer.sign_pdf(w, output=outf)
+
+        os.remove(cert_path)
+        os.remove(key_path)
+
+    def leave_application_sign_pdf_sync_cao(self, input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str) -> None:
+        cert_path, key_path = PDFSigner.extract_cert_and_key(p12_data, p12_password)
+        signer = signers.SimpleSigner.load(key_path, cert_path)
+        pdf_image = PdfImage(image_path)
+
+        x = 200  # move x axis | left: decrease | right: increase
+        y = 155  # increase the value to move up
+        x2 = x + 220
+        y2 = y + 70
+
+
+        with open(input_path, 'rb') as inf:
+            w = IncrementalPdfFileWriter(inf)
+            fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
+                'CaoSignature2',
+                box=(x, y, x2, y2)
+            ))
+            meta = signers.PdfSignatureMetadata(field_name='CaoSignature2')
+            pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
+                stamp_text='\n\n\nSigned by: %(signer)s\nDate Signed: %(ts)s',
+                background=pdf_image,
+                border_width=0
+            ))
+
+            with open(output_path, 'wb') as outf:
+                pdf_signer.sign_pdf(w, output=outf)
+
+        os.remove(cert_path)
+        os.remove(key_path)    

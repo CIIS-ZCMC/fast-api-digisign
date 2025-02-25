@@ -28,7 +28,7 @@ class ImageProcessor:
         1. Converts the image to RGBA format if needed
         2. Resizes the image according to the scale factor
         3. Enhances image sharpness by 50%
-        4. Increases image contrast by 20%
+        4. Increases image contrast by 40%
         5. Saves the processed image with specified quality
 
         Args:
@@ -62,7 +62,7 @@ class ImageProcessor:
             img = enhancer.enhance(1.5)  # Increase sharpness by 50%
             
             enhancer = ImageEnhance.Contrast(img)
-            img = enhancer.enhance(1.2)  # Increase contrast by 20%
+            img = enhancer.enhance(1.4)  # Increase contrast by 40%
             
             # Save with high quality
             img.save(output_path, 'PNG', quality=quality, optimize=True)

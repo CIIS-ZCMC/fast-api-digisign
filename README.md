@@ -27,9 +27,28 @@ A robust FastAPI-based system for digitally signing PDF documents, specifically 
 
 ### Prerequisites
 
+<<<<<<< HEAD
 - Python 3.8 or higher
 - pip (Python package installer)
 - Virtual environment (recommended)
+=======
+1. Download and Install Python:
+   - Visit [Python's official website](https://www.python.org/downloads/)
+   - Download the latest version of Python (3.12 or higher)
+   - During installation, ensure you check "Add Python to PATH"
+   - Verify installation by running:
+     ```bash
+     python --version
+     ```
+
+2. Install pip (Python package installer) if not included in Python installation:
+   ```bash
+   curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+   python get-pip.py
+   ```
+
+3. Virtual environment (recommended)
+>>>>>>> 05cf9d4ff64e244128dd78add600941999c6a90c
 
 ### Setup
 
@@ -55,6 +74,7 @@ A robust FastAPI-based system for digitally signing PDF documents, specifically 
    pip install -r requirements.txt
    ```
 
+<<<<<<< HEAD
 4. Set up environment variables:
    ```bash
    # Windows
@@ -62,6 +82,22 @@ A robust FastAPI-based system for digitally signing PDF documents, specifically 
 
    # Linux/macOS
    export JWT_SECRET=your_secret_key
+=======
+4. Generate a secure secret key and set up environment variables:
+   ```bash
+   # Generate secret key using OpenSSL
+   openssl rand -hex 32
+   
+   # Create .env file
+   echo JWT_SECRET=your_generated_secret_key > .env
+   
+   # Or set environment variables manually
+   # Windows
+   set JWT_SECRET=your_generated_secret_key
+
+   # Linux/macOS
+   export JWT_SECRET=your_generated_secret_key
+>>>>>>> 05cf9d4ff64e244128dd78add600941999c6a90c
    ```
 
 ### Dependencies
