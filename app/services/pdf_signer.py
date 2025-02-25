@@ -88,11 +88,13 @@ class PDFSigner:
         signer = signers.SimpleSigner.load(key_path, cert_path)
         pdf_image = PdfImage(image_path)
 
+        adjust_y = 0 if whole_month else 250 
+
         with open(input_path, 'rb') as inf:
             w = IncrementalPdfFileWriter(inf)
             fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                 'OwnerSignature1',
-                box=(50, 105, 250, 165)
+                box=(50, 105 + adjust_y, 250, 165 + adjust_y)
             ))
             meta = signers.PdfSignatureMetadata(field_name='OwnerSignature1')
             pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
@@ -109,7 +111,7 @@ class PDFSigner:
             w = IncrementalPdfFileWriter(inf)
             fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                 'OwnerSignature2',
-                box=(360, 105, 560, 165)
+                box=(360, 105 + adjust_y, 560, 165 + adjust_y)
             ))
             meta = signers.PdfSignatureMetadata(field_name='OwnerSignature2')
             pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
