@@ -152,6 +152,8 @@ class PDFSigner:
         signer = signers.SimpleSigner.load(key_path, cert_path)
         pdf_image = PdfImage(image_path)
 
+        adjust_y = 0 if whole_month else 255 
+
         # Load existing PDF
         with open(input_path, 'rb') as inf:
             w = IncrementalPdfFileWriter(inf)
@@ -163,7 +165,7 @@ class PDFSigner:
                 # Add the first signature field if it does not exist
                 fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                     'InchargeSignature1',
-                    box=(50, 70, 250, 130)
+                    box=(50, 70 + adjust_y, 250, 130 + adjust_y)
                 ))
 
             meta = signers.PdfSignatureMetadata(field_name='InchargeSignature1')
@@ -182,7 +184,7 @@ class PDFSigner:
             w = IncrementalPdfFileWriter(inf)
             fields.append_signature_field(w, sig_field_spec=fields.SigFieldSpec(
                 'InchargeSignature2',
-                box=(360, 70, 560, 130)
+                box=(360, 70 + adjust_y, 560, 130 + adjust_y)
             ))
             meta = signers.PdfSignatureMetadata(field_name='InchargeSignature2')
             pdf_signer = signers.PdfSigner(meta, signer=signer, stamp_style=stamp.TextStampStyle(
