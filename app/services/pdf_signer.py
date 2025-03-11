@@ -88,7 +88,7 @@ class PDFSigner:
         pdf_image = PdfImage(image_path)
 
         adjust_y = 0 if whole_month else 250 
-        adjust_y -= 30
+        # adjust_y -= 30
 
         with open(input_path, 'rb') as inf:
             w = IncrementalPdfFileWriter(inf)
