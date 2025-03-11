@@ -246,6 +246,81 @@ async def sign_leave_application_owner(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/sign-dtr/")
+async def sign_dtr_owner_and_incharge(
+    input_pdf: UploadFile = File(...),
+    owner_p12_file: UploadFile = File(...),
+    owner_p12_password: str = Form(...),
+    owner_image: UploadFile = File(...),
+    incharge_p12_file: UploadFile = File(...),
+    incharge_p12_password: str = Form(...),
+    incharge_image: UploadFile = File(...),
+    whole_month: bool = Form(...),
+    scale_factor: float = Form(0.9),
+    image_quality: int = Form(100),
+    token: dict = Depends(verify_token),
+):
+    try:
+        timestamp = int(datetime.datetime.now().timestamp())
+        output_pdf = f"signed_owner_incharge_{timestamp}.pdf"
+        input_path = os.path.join(TEMP_FILE_DIR, f"input_{timestamp}.pdf")
+        intermediate_path = os.path.join(TEMP_FILE_DIR, f"intermediate_{timestamp}.pdf")
+        output_path = os.path.join(OUTPUT_DIR, output_pdf)
+
+        owner_image_path = os.path.join(TEMP_FILE_DIR, f"owner_image_{timestamp}.png")
+        incharge_image_path = os.path.join(TEMP_FILE_DIR, f"incharge_image_{timestamp}.png")
+
+        with open(input_path, "wb") as f:
+            f.write(await input_pdf.read())
+
+        with open(owner_image_path, "wb") as f:
+            f.write(await owner_image.read())
+
+        with open(incharge_image_path, "wb") as f:
+            f.write(await incharge_image.read())
+
+        owner_p12_data = await owner_p12_file.read()
+        incharge_p12_data = await incharge_p12_file.read()
+
+        pdf_signer = PDFSigner()
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(
+                pdf_signer.dtr_sign_pdf_sync_owner,
+                input_path,
+                intermediate_path,
+                owner_image_path,
+                owner_p12_data,
+                owner_p12_password,
+                whole_month
+            )
+            future.result()
+
+            future = executor.submit(
+                pdf_signer.dtr_sign_pdf_sync_incharge,
+                intermediate_path,
+                output_path,
+                incharge_image_path,
+                incharge_p12_data,
+                incharge_p12_password,
+                whole_month
+            )
+            future.result()
+
+        os.remove(input_path)
+        os.remove(intermediate_path)
+        os.remove(owner_image_path)
+        os.remove(incharge_image_path)
+
+        return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail="Permission denied: " + str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/sign-leave-application-head/")
 async def sign_leave_application_head(
         input_pdf: UploadFile = File(...),

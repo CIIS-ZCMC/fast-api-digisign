@@ -64,8 +64,7 @@ class PDFSigner:
         return cert_path, key_path
 
     @staticmethod
-    def dtr_sign_pdf_sync_owner(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
-                           whole_month: bool) -> None:
+    def dtr_sign_pdf_sync_owner(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str, whole_month: bool) -> None:
         """
         Sign a PDF as an owner with two signature fields.
 
@@ -89,6 +88,7 @@ class PDFSigner:
         pdf_image = PdfImage(image_path)
 
         adjust_y = 0 if whole_month else 250 
+        adjust_y -= 30
 
         with open(input_path, 'rb') as inf:
             w = IncrementalPdfFileWriter(inf)
@@ -128,8 +128,7 @@ class PDFSigner:
         os.remove(intermediate_output)
 
     @staticmethod
-    def dtr_sign_pdf_sync_incharge(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str,
-                              whole_month: bool) -> None:
+    def dtr_sign_pdf_sync_incharge(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str, whole_month: bool) -> None:
         """
         Sign a PDF as an in-charge person with two signature fields.
 
