@@ -39,8 +39,9 @@ async def sign_dtr_owner(
         whole_month: bool = Form(...),
         scale_factor: float = Form(0.9),  # 0.9 = 90% of original size (10% reduction)
         image_quality: int = Form(100),    # 100% quality
-        token: dict = Depends(verify_token),
+        #token: dict = Depends(verify_token),
 ):
+
     """
     Sign a DTR (Daily Time Record) PDF as an owner with a digital signature.
 
@@ -100,7 +101,6 @@ async def sign_dtr_owner(
         os.remove(input_path)
         os.remove(original_image_path)
         os.remove(processed_image_path)
-
         return FileResponse(output_path, media_type='application/pdf', filename=output_pdf)
 
     except FileNotFoundError as e:

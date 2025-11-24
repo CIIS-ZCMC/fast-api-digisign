@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import jwt
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from .config import settings
+from .config import SECRET_KEY as JWT_SECRET
 
 security = HTTPBearer()
 
@@ -17,9 +17,9 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     try:
         # Use jwt.decode with the correct error types
         payload = jwt.decode(
-            credentials.credentials, 
-            settings.JWT_SECRET, 
-            algorithms=["HS256"]
+            credentials.credentials,
+            JWT_SECRET,
+            algorithms=["HS256"],
         )
         if not payload:
             raise HTTPException(

@@ -18,6 +18,7 @@ from pyhanko.pdf_utils.images import PdfImage
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.sign import fields, signers
 from pyhanko.sign.fields import enumerate_sig_fields
+from typing import List, Dict, Any
 
 class PDFSigner:
     """
@@ -126,6 +127,96 @@ class PDFSigner:
         os.remove(cert_path)
         os.remove(key_path)
         os.remove(intermediate_output)
+
+    @staticmethod
+    def sign_dynamic(input_path: str, output_path: str, placements: List[Dict[str, Any]]) -> None:
+        """
+        Sign a PDF according to a list of placements.
+
+        Each placement dict must contain:
+          - page (1-based int)
+          - box (optional) -> [x0, y0, x1, y1] in points OR
+            corner/width/height/margin_x/margin_y to compute box from page size
+          - image_path (str): path to image file to use as background
+          - p12_data (bytes): certificate bytes for this placement
+          - p12_password (str)
+          - field_name (optional)
+
+        The method signs sequentially, writing intermediate files so each signature
+        becomes an independent incremental signature.
+        """
+        # start source as input_path
+        src = input_path
+        # Keep track of intermediate files to remove
+        intermediates = []
+        for idx, plc in enumerate(placements):
+            page_1based = int(plc.get("page", 1))
+            page_index = page_1based - 1
+
+            # resolve box: only explicit box is supported now
+            if "box" in plc and plc["box"]:
+                try:
+                    box_vals = [float(v) for v in plc["box"]]
+                except Exception:
+                    raise ValueError("box must be an iterable of four numeric values")
+                if len(box_vals) != 4:
+                    raise ValueError("box must contain exactly four values: [x0, y0, x1, y1]")
+                box = tuple(box_vals)
+            else:
+                raise ValueError("Each placement must include an explicit 'box' entry: [x0, y0, x1, y1]")
+
+            image_path = plc["image_path"]
+            p12_data = plc["p12_data"]
+            p12_password = plc.get("p12_password", "")
+            field_name = plc.get("field_name", f"SigField_{idx+1}")
+
+            # create signer for this placement
+            cert_path, key_path = PDFSigner.extract_cert_and_key(p12_data, p12_password)
+            signer = signers.SimpleSigner.load(key_path, cert_path)
+            # remove temp PEMs now that signer is loaded
+            try:
+                os.remove(cert_path)
+            except:
+                pass
+            try:
+                os.remove(key_path)
+            except:
+                pass
+
+            pdf_image = PdfImage(image_path)
+
+            out_path = output_path if idx == len(placements) - 1 else f"intermediate_dynamic_{idx}.pdf"
+            with open(src, "rb") as inf:
+                w = IncrementalPdfFileWriter(inf)
+                # append field on the requested page
+                fields.append_signature_field(
+                    w,
+                    sig_field_spec=fields.SigFieldSpec(field_name, box=box, on_page=page_index),
+                )
+                meta = signers.PdfSignatureMetadata(field_name=field_name)
+                pdf_signer = signers.PdfSigner(
+                    meta,
+                    signer=signer,
+                    stamp_style=stamp.TextStampStyle(
+                        stamp_text='\n\n\nSigned by: %(signer)s\nDate Signed: %(ts)s',
+                        background=pdf_image,
+                        border_width=0,
+                    ),
+                )
+
+                with open(out_path, "wb") as outf:
+                    pdf_signer.sign_pdf(w, output=outf)
+
+            if out_path != output_path:
+                intermediates.append(out_path)
+            src = out_path
+
+        # cleanup intermediate files
+        for fpath in intermediates:
+            try:
+                os.remove(fpath)
+            except:
+                pass
 
     @staticmethod
     def dtr_sign_pdf_sync_incharge(input_path: str, output_path: str, image_path: str, p12_data: bytes, p12_password: str, whole_month: bool) -> None:

@@ -95,7 +95,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(
             status_code=401,
             detail="Could not validate credentials",
